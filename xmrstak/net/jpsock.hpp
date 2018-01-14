@@ -48,6 +48,10 @@ public:
 			ret += 10.0;
 		return ret;
 	}
+	inline void set_pool_weight(double weight) 
+	{ 
+		pool_weight = weight; 
+	}
 
 	inline size_t can_connect() { return get_timestamp() != connect_time; }
 	inline bool is_running() { return bRunning; }
