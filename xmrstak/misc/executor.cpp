@@ -1111,6 +1111,13 @@ void executor::http_connection_report(std::string& out)
 		out.append(buffer);
 	}
 
+	out.append("</table><h4>Pools</h4><table><tr><th>Address</th><th>Weight</th></tr>");
+        for(jpsock& pool : pools) {
+		snprintf(buffer, sizeof(buffer), "<tr><td>%s</td><td>%f</td></tr>",
+			pool.get_pool_addr(), pool.get_pool_weight(false));
+		out.append(buffer);
+	}
+
 	out.append(sHtmlConnectionBodyLow);
 }
 
@@ -1278,3 +1285,14 @@ void executor::get_http_report(ex_event_name ev_id, std::string& data)
 	ready.wait();
 	pHttpString = nullptr;
 }
+
+void executor::set_pool_default(const char* pool_address) {
+        for(jpsock& pool : pools) {
+		if (strcmp(pool_address, pool.get_pool_addr()) == 0) {
+			pool.set_pool_weight(9.8);
+		} else if (pool.get_pool_weight(false) == 9.8) {
+			pool.set_pool_weight(0.5);
+		}
+	}
+}
+
