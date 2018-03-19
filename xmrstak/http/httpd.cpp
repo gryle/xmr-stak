@@ -122,6 +122,9 @@ int httpd::req_handler(void * cls,
 	}
 	else if(strcasecmp(url, "/c") == 0 || strcasecmp(url, "/connection") == 0)
 	{
+		const char *value = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "pool");
+		if (value != nullptr)
+			executor::inst()->set_pool_default(value);
 		executor::inst()->get_http_report(EV_HTML_CONNSTAT, str);
 
 		rsp = MHD_create_response_from_buffer(str.size(), (void*)str.c_str(), MHD_RESPMEM_MUST_COPY);
