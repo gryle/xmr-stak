@@ -237,12 +237,17 @@ void minethd::work_main()
 	uint64_t iCount = 0;
 	cryptonight_ctx* cpu_ctx;
 	cpu_ctx = cpu::minethd::minethd_alloc_ctx();
-	cn_hash_fun hash_fun = cpu::minethd::func_selector(::jconf::inst()->HaveHardwareAes(), true /*bNoPrefetch*/, ::jconf::inst()->IsCurrencyMonero());
+	
+	// start with root algorithm and switch later if fork version is reached
+	auto miner_algo = ::jconf::inst()->GetCurrentCoinSelection().GetDescription(1).GetMiningAlgoRoot();
+	cn_hash_fun hash_fun = cpu::minethd::func_selector(::jconf::inst()->HaveHardwareAes(), true /*bNoPrefetch*/, miner_algo);
+	
 	uint32_t iNonce;
 
 	globalStates::inst().iConsumeCnt++;
 
-	bool mineMonero = strcmp_i(::jconf::inst()->GetCurrency(), "monero");
+	uint8_t version = 0;
+	size_t lastPoolId = 0;
 
 	while (bQuit == 0)
 	{
@@ -258,6 +263,23 @@ void minethd::work_main()
 
 			consume_work();
 			continue;
+		}
+		uint8_t new_version = oWork.getVersion();
+		if(new_version != version || oWork.iPoolId != lastPoolId)
+		{
+			coinDescription coinDesc = ::jconf::inst()->GetCurrentCoinSelection().GetDescription(oWork.iPoolId);
+			if(new_version >= coinDesc.GetMiningForkVersion())
+			{
+				miner_algo = coinDesc.GetMiningAlgo();
+				hash_fun = cpu::minethd::func_selector(::jconf::inst()->HaveHardwareAes(), true /*bNoPrefetch*/, miner_algo);
+			}
+			else
+			{
+				miner_algo = coinDesc.GetMiningAlgoRoot();
+				hash_fun = cpu::minethd::func_selector(::jconf::inst()->HaveHardwareAes(), true /*bNoPrefetch*/, miner_algo);
+			}
+			lastPoolId = oWork.iPoolId;
+			version = new_version;
 		}
 
 		cryptonight_extra_cpu_set_data(&ctx, oWork.bWorkBlob, oWork.iWorkSize);
@@ -281,11 +303,11 @@ void minethd::work_main()
 			uint32_t foundNonce[10];
 			uint32_t foundCount;
 
-			cryptonight_extra_cpu_prepare(&ctx, iNonce);
+			cryptonight_extra_cpu_prepare(&ctx, iNonce, miner_algo);
 
-			cryptonight_core_cpu_hash(&ctx, mineMonero);
+			cryptonight_core_cpu_hash(&ctx, miner_algo, iNonce);
 
-			cryptonight_extra_cpu_final(&ctx, iNonce, oWork.iTarget, &foundCount, foundNonce);
+			cryptonight_extra_cpu_final(&ctx, iNonce, oWork.iTarget, &foundCount, foundNonce, miner_algo);
 
 			for(size_t i = 0; i < foundCount; i++)
 			{
@@ -320,5 +342,4 @@ void minethd::work_main()
 }
 
 } // namespace xmrstak
-
 } //namespace nvidia
